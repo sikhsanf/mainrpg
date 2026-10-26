@@ -1,1 +1,33 @@
-{"name":"Chibi World: Lembah Asal","short_name":"Chibi World","start_url":".","scope":".","display":"fullscreen","orientation":"landscape","background_color":"#1a1626","theme_color":"#1a1626","icons":[{"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]}
+{
+ "id": "./",
+ "name": "Chibi World: Lembah Asal",
+ "short_name": "Chibi World",
+ "description": "Game 3D chibi Lembah Asal",
+ "start_url": "./index.html",
+ "scope": "./",
+ "display": "standalone",
+ "orientation": "landscape",
+ "background_color": "#1a1626",
+ "theme_color": "#1a1626",
+ "lang": "id",
+ "icons": [
+  {
+   "src": "icon-192.png",
+   "sizes": "192x192",
+   "type": "image/png",
+   "purpose": "any"
+  },
+  {
+   "src": "icon-512.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "any"
+  },
+  {
+   "src": "icon-maskable-512.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "maskable"
+  }
+ ]
+}

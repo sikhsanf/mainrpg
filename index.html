@@ -151,7 +151,7 @@ body.touch .wpnbar{flex-wrap:wrap;justify-content:flex-end;width:236px}
       <span class="touch-only">Joystick kiri untuk gerak · geser layar kanan untuk kamera</span>
       <span class="pad-hint">Controller: stik kiri gerak · stik kanan bidik · RT serang · LT tangkis/batal · A lompat · X bicara · Y duduk · LB/RB senjata · D-pad atas sihir, kanan perisai · Select mastery</span>
     </div>
-    <div class="hbtns"><button class="hbtn" id="soundBtn" aria-pressed="true">Suara: nyala</button><button class="hbtn" id="openPanel" aria-expanded="false" aria-controls="panel">Karakter &amp; dunia</button></div>
+    <div class="hbtns"><button class="hbtn" id="qBtn">Kualitas: Otomatis</button><button class="hbtn" id="soundBtn" aria-pressed="true">Suara: nyala</button><button class="hbtn" id="openPanel" aria-expanded="false" aria-controls="panel">Karakter &amp; dunia</button></div>
   </div>
   <div class="chip fps" id="fps" aria-hidden="true">– fps</div><div class="chip" id="envChip" aria-hidden="true"></div>
   <div id="npcLayer" aria-live="polite"></div>
@@ -732,7 +732,7 @@ function cloth(o){
 const colS=[], colC=[];
 function buildColliders(){
   colS.length=0; colC.length=0;
-  const tr = state.equip.armor==='plate'?0.04:state.equip.armor==='leather'?0.02:0;
+  const tr = state.equip.armor==='plate'?0.03:state.equip.armor==='leather'?0.015:0;
   [[0,0.12,0,0.2],[0,0.38,0,0.19],[0,0.62,0,0.22],[0.28,0.7,0,0.11],[-0.28,0.7,0,0.11],[0,0.0,-0.04,0.2],[0.13,-0.08,-0.03,0.16],[-0.13,-0.08,-0.03,0.16]].forEach(([x,y,z,r])=>colS.push({c:torso.localToWorld(new V3(x,y,z)), r:r+tr}));
   colS.push({c:head.localToWorld(new V3(0,0,0)), r:(hairG.visible?0.7:0.63)*HEADF});
   const lr = state.equip.lower2==='pants'?0.02:0, ar = state.equip.hand?0.025:0;
@@ -913,38 +913,39 @@ item('scarf','garment','Syal');
 }
 // ---- upper armor
 const lathe=(pts)=>new THREE.LatheGeometry(pts.map(p=>new THREE.Vector2(p[0],p[1])),48);
+const zsc=(g,k)=>{ g.scale(1,1,k); return g; };
 item('plate','armor','Besi');
 { const g=grp(torso);
-  part(lathe([[0.30,0.07],[0.385,0.065],[0.392,0.12],[0.375,0.28],[0.36,0.45],[0.352,0.6],[0.318,0.72],[0.228,0.81],[0.145,0.85]]),'metal',g);
-  const hem=new THREE.TorusGeometry(0.386,0.022,8,56); hem.rotateX(Math.PI/2); part(hem,'gold',g,[0,0.068,0],{outline:false});
-  const nk=new THREE.TorusGeometry(0.148,0.022,8,32); nk.rotateX(Math.PI/2); part(nk,'gold',g,[0,0.85,0],{outline:false});
-  [-1,1].forEach(s=>{ const pv=new THREE.Group(); pv.position.set(s*0.31,0.74,0); pv.rotation.z=-s*0.5; g.add(pv);
-    const dome=new THREE.SphereGeometry(0.21,28,14,0,Math.PI*2,0,Math.PI*0.55); dome.scale(1,0.8,1.15);
+  part(zsc(lathe([[0.225,0.07],[0.24,0.065],[0.248,0.12],[0.238,0.28],[0.252,0.45],[0.30,0.58],[0.326,0.69],[0.24,0.79],[0.145,0.85]]),0.72),'metal',g);
+  const hem=new THREE.TorusGeometry(0.246,0.02,8,56); hem.rotateX(Math.PI/2); hem.scale(1,1,0.72); part(hem,'gold',g,[0,0.068,0],{outline:false});
+  const nk=new THREE.TorusGeometry(0.135,0.02,8,32); nk.rotateX(Math.PI/2); part(nk,'gold',g,[0,0.85,0],{outline:false});
+  [-1,1].forEach(s=>{ const pv=new THREE.Group(); pv.position.set(s*0.31,0.72,0); pv.rotation.z=-s*0.5; g.add(pv);
+    const dome=new THREE.SphereGeometry(0.165,28,14,0,Math.PI*2,0,Math.PI*0.55); dome.scale(1,0.8,1.1);
     part(dome,'metal',pv); const d2=dome.clone(); d2.scale(0.92,0.92,0.92); part(d2,'metal',pv,[0,-0.08,0]);
-    const rim=new THREE.TorusGeometry(0.205,0.018,8,32); rim.rotateX(Math.PI/2); rim.scale(1,1,1.15); part(rim,'gold',pv,[0,-0.005,0],{outline:false});
+    const rim=new THREE.TorusGeometry(0.16,0.016,8,32); rim.rotateX(Math.PI/2); rim.scale(1,1,1.1); part(rim,'gold',pv,[0,-0.005,0],{outline:false});
     wob(pv,{tip:new V3(0,0.22,0),k:140,c:8,max:0.35,wind:0.2}); });
-  dangle(strip(0.22,0.5,0.02,14),'cloth',g,new V3(0,0.06,0.43),[-0.2,0,0],{L:0.52,k:28,wind:1.3,col:true,colR:0.1});
+  dangle(strip(0.2,0.5,0.02,14),'cloth',g,new V3(0,0.06,0.27),[-0.2,0,0],{L:0.52,k:28,wind:1.3,col:true,colR:0.1});
 }
 item('leather','armor','Kulit');
 { const g=grp(torso);
-  part(lathe([[0.3,0.075],[0.37,0.07],[0.375,0.12],[0.356,0.28],[0.34,0.45],[0.334,0.6],[0.3,0.72],[0.21,0.81],[0.15,0.835]]),'leather',g);
-  const belt=new THREE.TorusGeometry(0.375,0.04,8,56); belt.rotateX(Math.PI/2); part(belt,'leatherDark',g,[0,0.1,0]);
-  part(new THREE.BoxGeometry(0.1,0.085,0.035),'gold',g,[0,0.1,0.39]);
-  const pv=new THREE.Group(); pv.position.set(0.29,0.08,0.29); pv.rotation.y=0.785; g.add(pv);
+  part(zsc(lathe([[0.222,0.075],[0.236,0.07],[0.242,0.12],[0.23,0.28],[0.243,0.45],[0.29,0.58],[0.3,0.69],[0.22,0.79],[0.15,0.835]]),0.72),'leather',g);
+  const belt=new THREE.TorusGeometry(0.246,0.035,8,56); belt.rotateX(Math.PI/2); belt.scale(1,1,0.72); part(belt,'leatherDark',g,[0,0.1,0]);
+  part(new THREE.BoxGeometry(0.09,0.08,0.035),'gold',g,[0,0.1,0.185]);
+  const pv=new THREE.Group(); pv.position.set(0.21,0.08,0.15); pv.rotation.y=0.785; g.add(pv);
   const pouch=new THREE.BoxGeometry(0.15,0.17,0.08); pouch.translate(0,-0.1,0.02); part(pouch,'leatherDark',pv);
   const flap=new THREE.BoxGeometry(0.16,0.06,0.09); flap.translate(0,-0.03,0.025); part(flap,'leather',pv);
   wob(pv,{tip:new V3(0,-0.18,0),k:60,c:4,max:0.7,wind:0.4});
-  dangle(strip(0.05,0.26,0.015,10),'leatherDark',g,new V3(-0.07,0.07,0.392),[-0.08,0,0.05],{L:0.26,k:40,wind:1,col:true});
+  dangle(strip(0.05,0.26,0.015,10),'leatherDark',g,new V3(-0.07,0.07,0.19),[-0.08,0,0.05],{L:0.26,k:40,wind:1,col:true});
 }
 // ---- lower armor
 item('tasset','lower2','Rok besi');
 { const g=grp(torso);
-  const belt=new THREE.TorusGeometry(0.37,0.035,8,56); belt.rotateX(Math.PI/2); part(belt,'metal',g,[0,0.13,0]);
+  const belt=new THREE.TorusGeometry(0.25,0.032,8,56); belt.rotateX(Math.PI/2); belt.scale(1,1,0.76); part(belt,'metal',g,[0,0.13,0]);
   [-150,-110,-60,-20,20,60,110,150].forEach(az=>{
-    const pl=new THREE.BoxGeometry(0.2,0.3,0.025,4,10,1); const p=pl.attributes.position;
+    const pl=new THREE.BoxGeometry(0.15,0.3,0.025,4,10,1); const p=pl.attributes.position;
     for(let i=0;i<p.count;i++) p.setZ(i,p.getZ(i)-p.getX(i)*p.getX(i)*1.5);
     pl.translate(0,-0.15,0); pl.computeVertexNormals();
-    dangle(pl,'metal',g,new V3(Math.sin(D(az))*0.37,0.12,Math.cos(D(az))*0.37),[-0.12,D(az),0],{order:'YXZ',L:0.3,k:55,c:5,wind:0.35,col:true,colR:0.06}); });
+    dangle(pl,'metal',g,new V3(Math.sin(D(az))*0.25,0.12,Math.cos(D(az))*0.19),[-0.12,D(az),0],{order:'YXZ',L:0.3,k:55,c:5,wind:0.35,col:true,colR:0.06}); });
 }
 let pantsBelt=null; const sashParts=[];
 item('pants','lower2','Celana');
@@ -962,9 +963,9 @@ item('pants','lower2','Celana');
 // ---- hands
 item('gauntlet','hand','Besi');
 { arms.forEach((sh,i)=>{ const s=i===0?-1:1, g=grp(sh.userData.joint);
-    part(new THREE.CylinderGeometry(0.1,0.078,0.26,20),'metal',g,[0,-0.15,0]);
-    const r=new THREE.TorusGeometry(0.1,0.02,8,24); r.rotateX(Math.PI/2); part(r,'gold',g,[0,-0.02,0],{outline:false});
-    part(sphere(0.1,1,1.12,0.92),'metal',g,[0,-0.35,0.01]);
+    part(new THREE.CylinderGeometry(0.088,0.07,0.26,20),'metal',g,[0,-0.15,0]);
+    const r=new THREE.TorusGeometry(0.09,0.018,8,24); r.rotateX(Math.PI/2); part(r,'gold',g,[0,-0.02,0],{outline:false});
+    part(sphere(0.092,1,1.12,0.92),'metal',g,[0,-0.35,0.01]);
     dangle(strip(0.05,0.2,0.012,8),'cloth',g,new V3(s*0.1,-0.03,0),[0,0,s*0.35],{L:0.2,k:30,wind:1.5}); });
 }
 item('wraps','hand','Perban');
@@ -1015,7 +1016,7 @@ function equip(slot,id){
   if(typeof syncSkirt==='function') syncSkirt();
   const out = state.equip.armor==='plate'?1.14:state.equip.armor==='leather'?1.06:1;
   sashParts.forEach(m=>m.position.set(m.userData.basePos.x*out, m.userData.basePos.y, m.userData.basePos.z*out));
-  const ck = state.equip.armor==='plate'?1.18:state.equip.armor==='leather'?1.06:1;
+  const ck = state.equip.armor==='plate'?1.12:state.equip.armor==='leather'?1.04:1;
   cloths.forEach(cl=>{ if(!cl.pinsBase) cl.pinsBase=cl.pins.map(p=>p.clone()); cl.pins=cl.pinsBase.map(p=>new V3(p.x*ck, p.y+(ck-1)*0.25, p.z*ck)); cl.cons=null; cl.init=false; });
   syncSlotsUI(); updateStats();
 }
@@ -1234,6 +1235,7 @@ let waterMat=null;
 }
 
 // ---- grass (instanced blades that wrap around the player, bend with wind and part around the player) ----
+let GRASS_IG=null;
 const GRASS_N = isTouch ? 32000 : 70000, PATCH = isTouch ? 38 : 50;
 {
   const bg=new THREE.BufferGeometry();
@@ -1245,7 +1247,7 @@ const GRASS_N = isTouch ? 32000 : 70000, PATCH = isTouch ? 38 : 50;
   const off=new Float32Array(GRASS_N*2), rnd=new Float32Array(GRASS_N*4);
   for(let i=0;i<GRASS_N;i++){ off[i*2]=(rand()-0.5)*PATCH; off[i*2+1]=(rand()-0.5)*PATCH; rnd[i*4]=rand()*6.283; rnd[i*4+1]=0.55+rand()*0.75; rnd[i*4+2]=rand(); rnd[i*4+3]=rand(); }
   ig.setAttribute('aOff', new THREE.InstancedBufferAttribute(off,2)); ig.setAttribute('aRnd', new THREE.InstancedBufferAttribute(rnd,4));
-  ig.instanceCount=GRASS_N;
+  ig.instanceCount=GRASS_N; GRASS_IG=ig;
   const gm=new THREE.ShaderMaterial({side:THREE.DoubleSide, fog:true, lights:true,
     uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog, THREE.UniformsLib.lights, {uPatch:{value:PATCH}}]),
     vertexShader:'#include <common>\n#include <shadowmap_pars_vertex>\n'+GLSL_H+`#include <fog_pars_vertex>
@@ -2706,8 +2708,23 @@ new ResizeObserver(resize).observe(stage); resize();
 /* ---------- animation ---------- */
 const clock = new THREE.Clock(); let t=0, animT=0, nextBlink=2.5, blinkUntil=0;
 const L = (a,b,k)=>a+(b-a)*k;
+/* ---------- kualitas grafis: otomatis (resolusi dinamis) / manual ---------- */
+const QL=[{pr:2,g:1,sh:2048},{pr:1.5,g:0.7,sh:2048},{pr:1.15,g:0.5,sh:1024},{pr:1,g:0.35,sh:1024},{pr:0.8,g:0.22,sh:512}];
+const QM=['auto','high','mid','low'], QN={auto:'Otomatis',high:'Tinggi',mid:'Sedang',low:'Rendah'};
+let qMode=(()=>{ try{ return localStorage.getItem('chibi-q')||'auto'; }catch(e){ return 'auto'; } })(), qLvl=-1, qAcc=0, qN=0, qSum=0, qCool=3, qFast=0, qMin=0;
+function applyQ(l){ l=Math.max(0,Math.min(QL.length-1,l)); if(l===qLvl) return; qLvl=l; const q=QL[l];
+  renderer.setPixelRatio(Math.min(devicePixelRatio,q.pr)); if(GRASS_IG) GRASS_IG.instanceCount=Math.round(GRASS_N*q.g);
+  if(sun.shadow.mapSize.x!==q.sh){ sun.shadow.mapSize.set(q.sh,q.sh); if(sun.shadow.map){ sun.shadow.map.dispose(); sun.shadow.map=null; } } }
+function setQMode(m){ qMode=m; try{ localStorage.setItem('chibi-q',m); }catch(e){} document.getElementById('qBtn').textContent='Kualitas: '+QN[m];
+  if(m==='high') applyQ(0); else if(m==='mid') applyQ(2); else if(m==='low') applyQ(4); else { qMin=0; qCool=3; applyQ(isTouch?2:1); } }
+function qTick(raw){ if(qMode!=='auto') return; qAcc+=raw; qN++; if(qAcc<1.2) return; const fps=qN/qAcc; qAcc=0; qN=0; qCool-=1.2;
+  if(qCool>0) return;
+  if(fps<42 && qLvl<QL.length-1){ if(qFast>0&&qLvl>=qMin) qMin=qLvl+1; applyQ(qLvl+1); qCool=2.4; qFast=0; }
+  else if(fps>56){ qFast+=1.2; if(qFast>14 && qLvl>qMin){ applyQ(qLvl-1); qCool=4; qFast=0.01; } } else qFast=0; }
+document.getElementById('qBtn').addEventListener('click',e=>{ e.stopPropagation(); setQMode(QM[(QM.indexOf(qMode)+1)%QM.length]); });
+setQMode(qMode);
 function tick(){
-  const dt = Math.min(clock.getDelta(), 0.05); t+=dt; animT+=dt;
+  const rawDt = clock.getDelta(); qTick(rawDt); const dt = Math.min(rawDt, 0.05); t+=dt; animT+=dt;
   gpPre(dt); updatePlayer(dt); gpPost(dt); updateEnv(dt,t);
   const a = state.anim, loco = a==='walk'||a==='run'||a==='crouchwalk';
   const k = 1-Math.exp(-dt*12), kl = loco ? 1-Math.exp(-dt*28) : k;

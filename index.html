@@ -340,7 +340,7 @@ function part(geo, k, parent, pos, opts={}){
   parent.add(m); parts.push(m);
   const tc = geo.index ? geo.index.count/3 : geo.attributes.position.count/3; tris += tc; m.userData.tris = tc;
   if (opts.outline !== false){
-    const o = new SK(geo, olMats[k]); o.userData.k = k; m.add(o); outlines.push(o);
+    const o = new SK(geo, olMats[k]); o.userData.k = k; o.userData.ol = 1; m.add(o); outlines.push(o);
     if (opts.limb){ o.frustumCulled=false; skinQueue.push([o,opts.limb]); }
   }
   return m;
@@ -368,11 +368,16 @@ part(collar, 'shirt', torso, [0, 1.835-1.0, 0], {outline:false});
 // neck + head
 // proporsi baru (±4 kepala): kepala jauh lebih kecil, rahang + dagu, leher terlihat
 const HEADF = 0.30, HEADY = 0.17;
-matPair('neck', darkHex(state.skin,0.85));
+matPair('neck', darkHex(state.skin,0.78));
 function jawDeform(g, R){ const p=g.attributes.position;
-  for(let i=0;i<p.count;i++){ let x=p.getX(i),y=p.getY(i),z=p.getZ(i); const yn=y/R, t=Math.max(0,Math.min(1,-yn)), tt=t*t, s=Math.max(0,Math.min(1,(-yn-0.3)/0.7)), ss=s*s;
-    x*=1-0.2*ss; if(z>0) z*=1-0.03*ss; else z*=1-0.3*tt; if(yn<0) y*=1-0.04*tt;
-    if(yn<-0.55&&z>0){ const cw=1-Math.min(1,Math.abs(x)/(R*0.5)); z+=R*0.03*ss*cw; }
+  const sm=(a,b,v)=>{ const t=Math.max(0,Math.min(1,(v-a)/(b-a))); return t*t*(3-2*t); };
+  const WP=[[1,1],[0.15,1],[-0.2,0.98],[-0.5,0.87],[-0.8,0.5],[-1,0.34]];
+  const wAt=yn=>{ for(let k=1;k<WP.length;k++){ if(yn>=WP[k][0]){ const [y0,w0]=WP[k-1], [y1,w1]=WP[k]; return w1+(w0-w1)*sm(y1,y0,yn); } } return WP[WP.length-1][1]; };
+  for(let i=0;i<p.count;i++){ let x=p.getX(i),y=p.getY(i),z=p.getZ(i); const yn=y/R, t=Math.max(0,Math.min(1,-yn)), tt=t*t;
+    x*=wAt(yn);
+    if(z>0){ z*=1-0.07*sm(0.15,-0.5,yn); const cw=Math.max(0,1-Math.abs(x)/(R*0.55)); z+=R*0.1*sm(-0.45,-0.9,yn)*cw; }
+    else z*=1-0.3*tt;
+    if(yn<-0.78) y=-0.78*R+(y+0.78*R)*0.72;
     if(yn<-0.5){ const back=1-Math.max(0,Math.min(1,(z/R+0.1)/0.6)); y=-0.5*R+(y+0.5*R)*(1-0.5*back); }
     p.setXYZ(i,x,y,z); }
   g.computeVertexNormals(); return g; }
@@ -555,7 +560,9 @@ seg('anim', v=>{ state.anim=v; animT=0; });
 seg('expr', v=>{ state.expr=v; });
 seg('shade', v=>{ state.shade=v; parts.forEach(m=>m.material=mats[m.userData.k][v]); face.material=faceMats[v]; });
 function tog(id, cb){ const b=document.getElementById(id); b.addEventListener('click',()=>{ const on=b.getAttribute('aria-pressed')!=='true'; b.setAttribute('aria-pressed',on); cb(on); }); }
-tog('tOutline', on=>outlines.forEach(o=>o.visible=on));
+let OUT_USER=true, OUT_Q=true;
+function applyOutlines(){ const on=OUT_USER&&OUT_Q; outlines.forEach(o=>o.visible=on&&!o.userData.far); }
+tog('tOutline', on=>{ OUT_USER=on; applyOutlines(); });
 tog('tHair', on=>{ hairG.visible=on; updateStats(); });
 tog('tSpin', on=>{ controls.autoRotate=on; });
 tog('tPhys', on=>{ state.phys=on; });
@@ -1339,12 +1346,24 @@ function merge(geos){ // minimal merge for non-indexed + indexed geometries with
   const m=new THREE.BufferGeometry(); m.setAttribute('position',new THREE.BufferAttribute(P,3)); m.setAttribute('normal',new THREE.BufferAttribute(N,3)); m.setAttribute('color',new THREE.BufferAttribute(C,3)); return m; }
 function scatter(n, test){ const out=[]; let tries=0; while(out.length<n && tries<n*40){ tries++;
   const x=(rand()-0.5)*(WS-40), z=(rand()-0.5)*(WS-40); const h=groundH(x,z); if(!vilNear(x,z) && test(x,z,h,slopeAt(x,z))) out.push([x,z,h]); } return out; }
+const CULL=[], CELL=84;
 function instanced(geo, mat, list, scaleFn, opts={}){
-  const im=new THREE.InstancedMesh(geo, mat, list.length); const m4=new THREE.Matrix4(), q=new THREE.Quaternion(), s=new THREE.Vector3();
+  const m4=new THREE.Matrix4(), q=new THREE.Quaternion(), s=new THREE.Vector3(), cells=new Map();
+  if(!geo.boundingSphere) geo.computeBoundingSphere(); const gr=geo.boundingSphere.radius, gc=geo.boundingSphere.center;
   list.forEach((p,i)=>{ const sc=scaleFn(i); q.setFromAxisAngle(new THREE.Vector3(0,1,0), rand()*6.283);
     if(opts.tilt){ const qq=new THREE.Quaternion().setFromEuler(new THREE.Euler((rand()-0.5)*opts.tilt,0,(rand()-0.5)*opts.tilt)); q.multiply(qq); }
-    s.set(sc*(opts.sx?opts.sx():1), sc*(opts.sy?opts.sy():1), sc*(opts.sx?opts.sx():1)); m4.compose(new THREE.Vector3(p[0], p[2]-(opts.sink||0)*sc, p[1]), q, s); im.setMatrixAt(i,m4); });
-  im.castShadow=true; im.receiveShadow=true; scene.add(im); return im; }
+    s.set(sc*(opts.sx?opts.sx():1), sc*(opts.sy?opts.sy():1), sc*(opts.sx?opts.sx():1)); m4.compose(new THREE.Vector3(p[0], p[2]-(opts.sink||0)*sc, p[1]), q, s);
+    const key=Math.floor(p[0]/CELL)+','+Math.floor(p[1]/CELL); let c=cells.get(key); if(!c){ c=[]; cells.set(key,c); } c.push({m:m4.clone(),x:p[0],y:p[2],z:p[1],sc:Math.max(s.x,s.y,s.z)}); });
+  cells.forEach(arr=>{ const im=new THREE.InstancedMesh(geo, mat, arr.length); let cx=0,cy=0,cz=0; arr.forEach((e,k)=>{ im.setMatrixAt(k,e.m); cx+=e.x; cy+=e.y; cz+=e.z; }); cx/=arr.length; cy/=arr.length; cz/=arr.length;
+    let r=0; arr.forEach(e=>{ r=Math.max(r,Math.hypot(e.x-cx,e.y-cy,e.z-cz)+gr*e.sc*1.15+(gc.length()*e.sc)); });
+    im.castShadow=true; im.receiveShadow=true; im.frustumCulled=false; scene.add(im); CULL.push({m:im,c:new THREE.Vector3(cx,cy,cz),r}); });
+  return null; }
+const _cf=new THREE.Frustum(), _cm=new THREE.Matrix4(), _cs=new THREE.Sphere();
+let CULL_FAR=520;
+function cullStep(){ camera.updateMatrixWorld(); _cm.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse); _cf.setFromProjectionMatrix(_cm);
+  const px=PL.pos.x, pz=PL.pos.z;
+  for(let i=0;i<CULL.length;i++){ const e=CULL[i], d=Math.hypot(e.c.x-px,e.c.z-pz)-e.r; const shad=d<40;
+    e.m.castShadow=shad; e.m.visible = shad || (d<CULL_FAR && _cf.intersectsSphere(_cs.set(e.c,e.r+2))); } }
 const nearSpawn=(x,z)=>Math.hypot(x,z)<10;
 // broadleaf trees
 {
@@ -1942,7 +1961,9 @@ function npcSay(n,text){ n.say=text; n.sayT=Math.max(3.5,text.length*0.075); n.b
   if(AU.ctx && AU.on && n.dist<16){ const pan=panOf(n.pos.x,n.pos.z); for(let i=0;i<Math.min(6,2+Math.floor(text.length/14));i++) tone('square',n.voice*(0.85+Math.random()*0.35),n.voice*0.9,0.05,0.018,i*0.075,pan); } }
 function updateNPC(n,dt,t){
   const dx=PL.pos.x-n.pos.x, dz=PL.pos.z-n.pos.z, dP=Math.hypot(dx,dz); n.dist=dP;
-  const far=dP>110; n.g.visible=!far; if(n.line){ n.line.visible=n.bobber.visible=!far; }
+  const lv=dP<18?0:dP<48?1:2; if(n.lv!==lv){ n.lv=lv; if(!n.ms){ n.ms=[]; n.ol=[]; n.g.traverse(o=>{ if(o.isMesh) (o.userData.ol?n.ol:n.ms).push(o); }); }
+    n.ol.forEach(o=>{ o.userData.far=lv>0; o.visible=OUT_USER&&OUT_Q&&lv===0; }); n.ms.forEach(o=>o.castShadow=lv===0); }
+  const far=dP>75; n.g.visible=!far; if(n.line){ n.line.visible=n.bobber.visible=!far; }
   const attend=dP<4.5 && !PL.swim;
   let dirx=0, dirz=0, spd=0;
   if(attend){ if(n.role!=='fish') n.yawT=Math.atan2(dx,dz); n.target=null;
@@ -2709,11 +2730,11 @@ new ResizeObserver(resize).observe(stage); resize();
 const clock = new THREE.Clock(); let t=0, animT=0, nextBlink=2.5, blinkUntil=0;
 const L = (a,b,k)=>a+(b-a)*k;
 /* ---------- kualitas grafis: otomatis (resolusi dinamis) / manual ---------- */
-const QL=[{pr:2,g:1,sh:2048},{pr:1.5,g:0.7,sh:2048},{pr:1.15,g:0.5,sh:1024},{pr:1,g:0.35,sh:1024},{pr:0.8,g:0.22,sh:512}];
+const QL=[{pr:2,g:1,sh:2048,far:520,sd:1},{pr:1.5,g:0.7,sh:2048,far:460,sd:1},{pr:1.15,g:0.5,sh:1024,far:380,sd:1},{pr:1,g:0.3,sh:1024,far:300,sd:1},{pr:0.8,g:0.15,sh:512,far:230,sd:0}];
 const QM=['auto','high','mid','low'], QN={auto:'Otomatis',high:'Tinggi',mid:'Sedang',low:'Rendah'};
 let qMode=(()=>{ try{ return localStorage.getItem('chibi-q')||'auto'; }catch(e){ return 'auto'; } })(), qLvl=-1, qAcc=0, qN=0, qSum=0, qCool=3, qFast=0, qMin=0;
 function applyQ(l){ l=Math.max(0,Math.min(QL.length-1,l)); if(l===qLvl) return; qLvl=l; const q=QL[l];
-  renderer.setPixelRatio(Math.min(devicePixelRatio,q.pr)); if(GRASS_IG) GRASS_IG.instanceCount=Math.round(GRASS_N*q.g);
+  renderer.setPixelRatio(Math.min(devicePixelRatio,q.pr)); CULL_FAR=q.far; { const oq=l<3; if(oq!==OUT_Q){ OUT_Q=oq; applyOutlines(); npcs.forEach(n=>n.lv=-1); } } if(!!sun.castShadow!==!!q.sd) sun.castShadow=!!q.sd; if(GRASS_IG) GRASS_IG.instanceCount=Math.round(GRASS_N*q.g);
   if(sun.shadow.mapSize.x!==q.sh){ sun.shadow.mapSize.set(q.sh,q.sh); if(sun.shadow.map){ sun.shadow.map.dispose(); sun.shadow.map=null; } } }
 function setQMode(m){ qMode=m; try{ localStorage.setItem('chibi-q',m); }catch(e){} document.getElementById('qBtn').textContent='Kualitas: '+QN[m];
   if(m==='high') applyQ(0); else if(m==='mid') applyQ(2); else if(m==='low') applyQ(4); else { qMin=0; qCool=3; applyQ(isTouch?2:1); } }
@@ -2776,11 +2797,11 @@ function tick(){
   if (face.material.map!==want){ faceMats.toon.map=want; faceMats.soft.map=want; }
   updateAudio(dt, t); updateFauna(dt, t); updateNPCs(dt, t); updateWater(dt); updateCamera(dt); updateWorldFX(t); camera.updateMatrixWorld(); updateNPCLabels();
   updateHair(dt, t); updateEquip(dt, t); updateStreaks(dt);
-  renderer.render(scene,camera); updateFps();
+  cullStep(); renderer.render(scene,camera); updateFps();
   requestAnimationFrame(tick);
 }
 tick();
-window.__chibi = {ENV, setFight, applyEnv, state, camera, PL, CAM, keys, GP, foes, MST, PAD, VIL, npcs, addXp, toggleShield, toggleSpell, atkDown, atkUp, setWeapon, toggleSit, step:(dt)=>{gpPre(dt);updatePlayer(dt);gpPost(dt);}};
+window.__chibi = {renderer, CULL, scene, camera, ENV, setFight, applyEnv, state, camera, PL, CAM, keys, GP, foes, MST, PAD, VIL, npcs, addXp, toggleShield, toggleSpell, atkDown, atkUp, setWeapon, toggleSit, step:(dt)=>{gpPre(dt);updatePlayer(dt);gpPost(dt);}};
 })();
 </script>
 <script>if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});</script>
